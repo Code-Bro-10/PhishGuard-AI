@@ -36,6 +36,20 @@ describe('Authentication & Health APIs', () => {
     expect(res.body.user.email).toBe('analyst@phishguard.test');
   });
 
+  it('POST /auth/register (without /api prefix) should route properly and create user', async () => {
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Root Alias User',
+        email: 'rootalias@phishguard.test',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.token).toBeDefined();
+  });
+
   it('POST /api/auth/register should reject duplicate email', async () => {
     const res = await request(app)
       .post('/api/auth/register')

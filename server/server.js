@@ -58,11 +58,33 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
+// URL rewrite middleware: seamlessly handle API requests made without the '/api' prefix
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+
+  // Allow browser direct page navigation for HTML to fall through to static / SPA client
+  if (req.headers.accept && req.headers.accept.includes('text/html') && req.method === 'GET') {
+    return next();
+  }
+
+  const apiPrefixes = ['/auth', '/scan', '/dashboard', '/alerts', '/users', '/threat-intel', '/health'];
+  const matchesPrefix = apiPrefixes.some(
+    (prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`)
+  );
+
+  if (matchesPrefix) {
+    req.url = `/api${req.url}`;
+  }
+  next();
+});
+
 // Apply rate limiter to all API calls
-app.use('/api', apiLimiter);
+app.use(['/api', '/auth', '/scan'], apiLimiter);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.status(200).json({
     status: 'healthy',
     system: 'PhishGuard AI Phishing Detection Core',
@@ -71,13 +93,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Mount modular REST APIs
-app.use('/api/auth', authRoutes);
-app.use('/api/scan', scanRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/alerts', alertRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/threat-intel', threatIntelRoutes);
+// Mount modular REST APIs (supporting both /api/auth and direct /auth aliases)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/scan', '/scan'], scanRoutes);
+app.use(['/api/dashboard'], dashboardRoutes);
+app.use(['/api/alerts'], alertRoutes);
+app.use(['/api/users'], userRoutes);
+app.use(['/api/threat-intel'], threatIntelRoutes);
 
 // Serve frontend static assets in production if client/dist exists
 app.use(express.static(clientDistPath));

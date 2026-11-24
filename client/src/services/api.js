@@ -1,5 +1,13 @@
-const rawBase = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_BASE = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase;
+let rawBase = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
+// Strip trailing slash
+rawBase = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase;
+
+// Automatically append /api if user provided host without /api (e.g. https://phishguard.onrender.com)
+if (rawBase && !rawBase.endsWith('/api')) {
+  rawBase = `${rawBase}/api`;
+}
+
+const API_BASE = rawBase;
 
 /**
  * Helper to execute fetch requests with automatic token headers and error handling.
@@ -17,7 +25,11 @@ async function request(endpoint, options = {}) {
     headers,
   };
 
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  // Prevent duplicate /api/api if endpoint already included /api
+  if (API_BASE.endsWith('/api') && cleanEndpoint.startsWith('/api/')) {
+    cleanEndpoint = cleanEndpoint.slice(4);
+  }
   const requestUrl = `${API_BASE}${cleanEndpoint}`;
 
   try {
